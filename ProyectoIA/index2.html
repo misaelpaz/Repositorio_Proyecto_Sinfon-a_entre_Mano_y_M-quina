@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hand Pose Detection</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose"></script>
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+
+    <style>
+        #video {
+            transform: scaleX(-1);
+        }
+        .drawingPanel {
+            position: relative;
+            width: 640px;
+            height: 480px;
+            border: 1px solid #ccc;
+            overflow: hidden;
+            margin-top: 10px;
+            display: inline-block;
+        }
+        #positionInfo {
+            position: absolute;
+            top: 0;
+            left: 0;
+            margin: 10px;
+            font-size: 14px;
+            color: white;
+        }
+    </style>
+</head>
+<body style="background-color: aquamarine;" >
+    <div>
+        <h1 class="text-center">Dibujo con Movimiento de Mano</h1>
+        <video id="video" width="640" height="480" autoplay class="img-fluid"></video>
+        <div class="drawingPanel" id="realTimePanel"></div>
+        <div class="drawingPanel" id="newDrawingPanel"></div>
+        <br>
+        <button class="btn btn-danger mr-2" onclick="clearDrawing()">Borrar Dibujo</button>
+        <button class="btn btn-primary mr-2" onclick="toggleDrawing()">Iniciar/Detener Dibujo</button>
+        <button class="btn btn-success" onclick="generatePrediction()">Generar</button>
+        <div id="positionInfo"></div>
+    </div>
+
+    <script>
+        let drawingEnabled = false;
+        let prevIndexFingerTip = null;
+        let currentDrawingPanel = null;
+        const positionHistory = [];
+
+        // Función para cargar el modelo y realizar la detección de postura de la mano
+        async function detectHandPose() {
+            // Cargar el modelo
+            const net = await handpose.load();
+
+            // Obtener el stream de la cámara
+            const video = document.getElementById('video');
+            const stream = await navigator.mediaDevices.getUserMedia({ 'video': true });
+            video.srcObject = stream;
+
+            // Obtener los paneles de dibujo
+            const realTimePanel = document.getElementById('realTimePanel');
+            const newDrawingPanel = document.getElementById('newDrawingPanel'); // Nuevo panel
+            const positionInfo = document.getElementById('positionInfo');
+
+            // Detección de la mano en cada frame
+            setInterval(async () => {
+                const predictions = await net.estimateHands(video);
+
+                // Limpiar el panel de tiempo real
+                realTimePanel.innerHTML = '';
+
+                if (predictions.length > 0) {
+                    const indexFingerTip = predictions[0].landmarks[8]; // Índice 8 representa la punta del dedo índice
+
+                    // Reflejar horizontalmente las coordenadas del punto
+                    const reflectedIndexFingerTip = [640 - indexFingerTip[0], indexFingerTip[1]];
+
+                    // Dibujar el punto de la punta del dedo índice en el panel de tiempo real
+                    const dot = document.createElement('div');
+                    dot.style.width = '50px';
+                    dot.style.height = '50px';
+                    dot.style.background = 'red';
+                    dot.style.borderRadius = '100%';
+                    dot.style.position = 'absolute';
+                    dot.style.left = reflectedIndexFingerTip[0] + 'px';
+                    dot.style.top = reflectedIndexFingerTip[1] + 'px';
+                    realTimePanel.appendChild(dot);
+
+                    // Mostrar las coordenadas x e y del punto rojo
+                    positionInfo.textContent = `Posición del Punto Rojo: X=${reflectedIndexFingerTip[0]}, Y=${reflectedIndexFingerTip[1]}`;
+
+                    // Dibujar el punto de la punta del dedo índice en el nuevo panel (verde)
+                    const dotNewPanel = document.createElement('div');
+                    dotNewPanel.style.width = '30px';
+                    dotNewPanel.style.height = '30px';
+                    dotNewPanel.style.background = 'green';
+                    dotNewPanel.style.borderRadius = '100%';
+                    dotNewPanel.style.position = 'absolute';
+                    dotNewPanel.style.left = reflectedIndexFingerTip[0] + 'px';
+                    dotNewPanel.style.top = reflectedIndexFingerTip[1] + 'px';
+
+                    // Cambiar el panel de dibujo actual según el estado del botón
+                    currentDrawingPanel = drawingEnabled ? newDrawingPanel : null;
+
+                    if (currentDrawingPanel) {
+                        currentDrawingPanel.appendChild(dotNewPanel);
+                    }
+
+                    // Conectar los puntos con líneas continuas en tiempo real
+                    if (drawingEnabled) {
+                        if (prevIndexFingerTip) {
+                            const line = document.createElement('div');
+                            line.style.position = 'absolute';
+                            line.style.width = '20px';  // Ajustar el grosor de la línea
+                            line.style.height = '20px'; // Ajustar la altura de la línea
+                            line.style.background = 'green'; // Cambiado a verde para el nuevo panel
+                            line.style.left = prevIndexFingerTip[0] + 'px';
+                            line.style.top = prevIndexFingerTip[1] + 'px';
+
+                            // Agregar la línea al panel de dibujo actual
+                            currentDrawingPanel.appendChild(line);
+                        }
+
+                        prevIndexFingerTip = reflectedIndexFingerTip;
+
+                        // Almacenar la posición actual en el historial
+                        positionHistory.push(reflectedIndexFingerTip);
+                    }
+                } else {
+                    // Limpiar el historial si no se detecta la mano
+                    if (positionHistory.length > 1 && drawingEnabled) {
+                        // Conectar los puntos con líneas continuas en el nuevo panel
+                        const line = document.createElement('div');
+                        line.style.position = 'absolute';
+                        line.style.width = '20px';  // Ajustar el grosor de la línea
+                        line.style.height = '20px'; // Ajustar la altura de la línea
+                        line.style.background = 'green'; // Cambiado a verde para el nuevo panel
+
+                        // Mover el lápiz al primer punto del historial
+                        line.style.left = positionHistory[0][0] + 'px';
+                        line.style.top = positionHistory[0][1] + 'px';
+
+                        // Agregar la línea al panel de dibujo actual
+                        currentDrawingPanel.appendChild(line);
+
+                        // Dibujar líneas continuas en el nuevo panel
+                        for (let i = 1; i < positionHistory.length; i++) {
+                            const line = document.createElement('div');
+                            line.style.position = 'absolute';
+                            line.style.width = '20px';  // Ajustar el grosor de la línea
+                            line.style.height = '20px'; // Ajustar la altura de la línea
+                            line.style.background = 'green'; // Cambiado a verde para el nuevo panel
+                            line.style.left = positionHistory[i][0] + 'px';
+                            line.style.top = positionHistory[i][1] + 'px';
+
+                            // Agregar la línea al panel de dibujo actual
+                            currentDrawingPanel.appendChild(line);
+                        }
+                    }
+
+                    // Limpiar el historial
+                    positionHistory.length = 0;
+                    prevIndexFingerTip = null;
+                }
+            }, 20); // Intervalo reducido a 20ms para una actualización más frecuente y un trazo más suave
+        }
+
+        // Función para borrar el dibujo
+        function clearDrawing() {
+            // Limpiar todos los paneles
+            const realTimePanel = document.getElementById('realTimePanel');
+            const newDrawingPanel = document.getElementById('newDrawingPanel');
+            realTimePanel.innerHTML = '';
+            newDrawingPanel.innerHTML = '';
+
+            // Limpiar el historial
+            positionHistory.length = 0;
+            prevIndexFingerTip = null;
+
+            // Restablecer la información de posición
+            const positionInfo = document.getElementById('positionInfo');
+            positionInfo.textContent = 'Posición del Punto Rojo: X=, Y=';
+        }
+
+        // Función para alternar entre el modo de dibujo y el modo de pausa
+        function toggleDrawing() {
+            drawingEnabled = !drawingEnabled;
+
+            // Limpiar el historial y restablecer el punto anterior al detener el dibujo
+            if (!drawingEnabled) {
+                positionHistory.length = 0;
+                prevIndexFingerTip = null;
+            }
+        }
+
+        // Función para realizar la predicción de gestos (letras)
+        async function predictGestures(history) {
+            const lastPoint = history[history.length - 1];
+            const inputTensor = tf.tensor2d([lastPoint]);
+
+            // Cargar un modelo preentrenado de clasificación de gestos
+            const model = await tf.loadLayersModel('url_del_modelo'); // Reemplazar 'url_del_modelo' con la URL real del modelo
+
+            // Realizar la predicción
+            const prediction = model.predict(inputTensor);
+            const predictedGesture = await prediction.array();
+
+            // Convertir la predicción en una letra (o gesto)
+            const gestureIndex = predictedGesture[0].indexOf(Math.max(...predictedGesture[0]));
+            const gestures = ['A', 'B', 'C', 'D', 'E']; // Reemplazar con las letras correspondientes
+            const predictedLetter = gestures[gestureIndex];
+
+            return predictedLetter;
+        }
+
+        // Función para generar la predicción y descargar el resultado
+        async function generatePrediction() {
+            const currentGesture = await predictGestures(positionHistory);
+
+            // Crear un enlace para descargar el resultado como archivo de texto
+            const blob = new Blob([currentGesture], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'gesture_prediction.txt';
+            link.click();
+        }
+
+        // Llamar a la función para cargar el modelo y detectar la postura de la mano
+        detectHandPose();
+    </script>
+</body>
+</html>
+
+
