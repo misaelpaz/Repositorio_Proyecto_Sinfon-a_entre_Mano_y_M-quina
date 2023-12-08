@@ -1,0 +1,58 @@
+
+Instrucciones:
+
+---------------------Logistica------------------------------------
+
+1. Descomprimir el .zip.
+2. Instalar Python version 3.7.6 en el sistema. (Necesario)
+3. Ejecutar la Terminal o CMD como Administrador.
+4. En la Terminal ejecutar las instrucciones:      
+	
+	pip install --upgrade pip
+	pip install tensorflow
+
+
+5. Desde la Terminar, ir al directorio del proyecto. Ejemplo: 
+	cd C:\Users\Administrator\Documents\ProyectoIA
+
+6. Una vez este en la ruta del proyecto, ejecutar las instrucciones: 
+
+	pip install tensorflow_datasets
+	pip install matplotlib
+
+7. Cerrar la Terminal
+
+
+-------------------------Ejecucion del proyecto------------------------------
+
+Dibujo con Movimiento de Mano
+
+1. Abrir index2.html (Preferiblemente con LiveServer desde VSCode)
+2. Otorgar el permiso para usar la camara web.
+3. Colocar la palma de la mano cerca de la camara para que el punto de referencia para el trazo pueda ser detectado.
+4. Presiona el boton "Iniciar/Detener Dibujo" para iniciar o detener el trazo.
+5. Presiona el boton "Borrar Dibujo" para borrar el trazo.
+
+
+
+Reconocimiento de numeros
+
+1. Inicio del servidor:
+	a. Ejecutar la Terminal o CMD como Administrador.
+	b. Desde la Terminar, ir al directorio del proyecto.
+	c. Una vez este en la ruta del proyecto, ejecutar la instruccion:
+		python numero.py
+	d. El servidor estara listo para recibir peticiones cuando se imprima en la terminal "Iniciando el servidor..."
+	e. IMPORTANTE: Mantener el servidor abierto (No cerrar la Terminal)
+
+2. Abrir index.html (Preferiblemente con LiveServer desde VSCode)
+3. Dibuja un numero dentro del "DrawingPanel" (Lo mas "centrico" posible)
+4. Automaticamente aparecera el numero que el modelo predijo en un label.
+5. Nota: Si dibuja el numero 2, en la Terminal aparecera lo siguiente:
+	Peticion recibida
+	1/1 [==============================] - 0s 37ms/step
+	Prediccion final: 2
+
+
+
+
